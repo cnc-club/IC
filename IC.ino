@@ -2,6 +2,8 @@
 #include <LiquidCrystal.h>
 #include "MyMenu.h"
 #include "StepperIC.h"
+#include "MyMenuIC.h"
+
 
 
 #define PulsesPerMM 42666
@@ -38,7 +40,7 @@ PROGMEM const char *tests[] =
 char buffer[TESTLEN];    // make sure this is large enough for the largest string it must hold
 
 
-#define NUM_ITEMS 33 //length of items array include submenu headers
+#define NUM_ITEMS 32 //length of items array include submenu headers
 // DO NOT FORDGET UPDATE LENGTH
 MItm items[NUM_ITEMS] = {
   MItm("ImmunoComb Tester", 0, 0), //main header always 0,0
@@ -52,24 +54,22 @@ MItm items[NUM_ITEMS] = {
   MItm("X-1", 1004),
   MItm("Z+1", 1005),
   MItm("Z-1", 1006),
-  MItm(" <<Back", 0),
+  MItm("..Back", 0),
 
-
-
-  MItm("Infection", 1, 0), //this is the submenu with index 1 (0 is previous menu index)
+  MItm("Infections", 1, 0), //this is the submenu with index 1 (0 is previous menu index)
   MItm("HIV", 10), // if there is no "50" submenu callback will run
   MItm("Hepatitis", 20),
   MItm("Chlamidia", 30),
   MItm("TORCH", 40),
   MItm("Helicobacter", 50),
   MItm("Others", 60),
-  MItm(" <<BACK", 0),
+  MItm("..BACK", 0),
 
   MItm("HIV", 10, 1), // if there is no "50" submenu callback will run
   MItm("HIV BiSpot", 101),
   MItm("HIV Combfirm", 102),
   MItm("HIV TriSpot", 103),
-  MItm(" <<BACK", 1),
+  MItm("..BACK", 1),
 
   MItm("HEPATITIS", 20, 1), // if there is no "50" submenu callback will run
   MItm("HAV Ab", 201),
@@ -78,9 +78,9 @@ MItm items[NUM_ITEMS] = {
   MItm("HBc IgG", 204),
   MItm("HBc IgM", 205),
   MItm("HCV", 206),
-  MItm(" <<BACK", 1),
+  MItm("..BACK", 1),
 
-  MItm(" <<MAIN", 0),
+
 
 };
 // DO NOT FORDGET UPDATE LENGTH
