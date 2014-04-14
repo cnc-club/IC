@@ -1,15 +1,15 @@
 // include the library code:
 #include <LiquidCrystal.h>
-#include "MyMenu.h"
 #include "StepperIC.h"
-#include "MyMenuIC.h"
+#include "MenuIC.h"
 
 
 
 #define PulsesPerMM 42666
-Stepper stX(PulsesPerMM, 8, 7, A0, 1);
+Stepper stX(PulsesPerMM, 8, 7, A0, -1);
 Stepper stZ(PulsesPerMM, 10, 9, A1, 1);
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
 
 int UP, DOWN, RIGHT, LEFT, LIMIT_X, LIMIT_Z;
 #define TESTSLEN 6
@@ -20,7 +20,7 @@ int UP, DOWN, RIGHT, LEFT, LIMIT_X, LIMIT_Z;
 //  Procedure: (X|Z)\d+ - move
 //  I\d+ - incubate sec
 //  W\d+ - wash sec
-prog_char string_0[] PROGMEM = "  101  1000 &X100&Z-10&W30&I30&Z100&X100&";
+prog_char string_0[] PROGMEM = "  101  1000 &H2&H0&X66 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &";
 prog_char string_1[] PROGMEM = "  102  1000 &String 1";
 prog_char string_2[] PROGMEM = "  103       &String 2";
 prog_char string_3[] PROGMEM = "  104       &String 3";
@@ -40,69 +40,57 @@ PROGMEM const char *tests[] =
 char buffer[TESTLEN];    // make sure this is large enough for the largest string it must hold
 
 
-#define NUM_ITEMS 32 //length of items array include submenu headers
+#define NUM_ITEMS 33 //length of items array include submenu headers
 // DO NOT FORDGET UPDATE LENGTH
 MItm items[NUM_ITEMS] = {
-  MItm("ImmunoComb Tester", 0, 0), //main header always 0,0
-  MItm("Select test", 1), //1 is target submenu index
-  MItm("Settings", 2),
+  MItm("ImmunoComb Tester", 0, -2), //main header always 0,0
+  MItm("Infections", 1, 0), 
+  MItm("HIV", 10, 1), 
+  MItm("Hepatitis", 20, 1),
+  MItm("Chlamidia", 30, 1),
+  MItm("TORCH", 40, 1),
+  MItm("Helicobacter", 50, 1),
+  MItm("Others", 60, 1),
+  MItm("..BACK", -10, 1),
 
   MItm("Settings", 2, 0),
-  MItm("Home X", 1001),
-  MItm("Home Z", 1002),
-  MItm("X+1", 1003),
-  MItm("X-1", 1004),
-  MItm("Z+1", 1005),
-  MItm("Z-1", 1006),
-  MItm("..Back", 0),
-
-  MItm("Infections", 1, 0), //this is the submenu with index 1 (0 is previous menu index)
-  MItm("HIV", 10), // if there is no "50" submenu callback will run
-  MItm("Hepatitis", 20),
-  MItm("Chlamidia", 30),
-  MItm("TORCH", 40),
-  MItm("Helicobacter", 50),
-  MItm("Others", 60),
-  MItm("..BACK", 0),
-
-  MItm("HIV", 10, 1), // if there is no "50" submenu callback will run
-  MItm("HIV BiSpot", 101),
-  MItm("HIV Combfirm", 102),
-  MItm("HIV TriSpot", 103),
-  MItm("..BACK", 1),
-
-  MItm("HEPATITIS", 20, 1), // if there is no "50" submenu callback will run
-  MItm("HAV Ab", 201),
-  MItm("HAV IgM", 202),
-  MItm("HBs Ag'90", 203),
-  MItm("HBc IgG", 204),
-  MItm("HBc IgM", 205),
-  MItm("HCV", 206),
-  MItm("..BACK", 1),
+  MItm("Home X", 1001, 2),
+  MItm("Home Z", 1002, 2),
+  MItm("X+5", 1003, 2),
+  MItm("X-5", 1004, 2),
+  MItm("Z+5", 1005, 2),
+  MItm("Z-5", 1006, 2),
+  MItm("X+1", 1007, 2),
+  MItm("X-1", 1008, 2),
+  MItm("Z+1", 1009, 2),
+  MItm("Z-1", 1010, 2),
+  MItm("Wash", 1011, 2),
+  MItm("..Back", -10, 2),
 
 
+  MItm("HIV BiSpot", 101, 10),
+  MItm("HIV Combfirm", 102, 10),
+  MItm("HIV TriSpot", 103, 10),
+  MItm("..BACK", -10, 10),
 
+  MItm("HAV Ab", 201, 20),
+  MItm("HAV IgM", 202, 20),
+  MItm("HBs Ag'90", 203, 20),
+  MItm("HBc IgG", 204, 20),
+  MItm("HBc IgM", 205, 20),
+  MItm("HCV", 206, 20),
+  MItm("..BACK", -10, 20),
 };
 // DO NOT FORDGET UPDATE LENGTH
 Menu menu(items, NUM_ITEMS, &lcd, menuCallback);
 
-void home(int axis) {
-  if ( axis == 0 )
-  {
-    while (digitalRead(LIMIT_X) == LOW)
-    { stX.step(-10);
-      lcd.setCursor(0, 1);
-    }
-    while (digitalRead(LIMIT_X) == HIGH)
-    {
-      stX.step(1);
-    }
-  }
+void home(Stepper st) {
+    st.home();  
 }
 
 int move(Stepper st, float mm)
 {
-  st.step(round(mm * float(st.ppm) / 1000));
+  st.step(mm);
 }
 
 void move_to(Stepper st, long mm)
@@ -127,8 +115,11 @@ void setup() {
   pinMode(LIMIT_X, INPUT);
   pinMode(LIMIT_Z, INPUT);
   menu.goMain();
-  stX.setSpeed(100000); // just max speed
-  stZ.setSpeed(100000);
+  stX.setSpeed(1.5); // just max speed
+  stZ.setSpeed(1);
+  stX.dir_inv = -1;
+  stZ.dir_inv = -1;
+  
 
 }
 
@@ -140,15 +131,15 @@ void loop() {
     //delay(100);
   }
   if (digitalRead(DOWN) == HIGH) {
-    menu.goDown();
+    menu.goNext();
     delay(100);
   }
   if (digitalRead(UP) == HIGH) {
-    menu.goUp();
+    menu.goPrev();
     delay(100);
   }
   if (digitalRead(RIGHT) == HIGH) {
-    menu.goNext();
+    menu.goDown();
     delay(100);
   }
 
@@ -166,11 +157,11 @@ void wash(int sec)
   long time = millis() + sec*1000;
   while (time > millis())
   {
-    move(stZ, 7);
-    move(stZ, -7);
-    move(stX, 5);
-    move(stX, -10);
-    move(stX, 5);
+    move(stZ, 6);
+    move(stZ, -6);
+    move(stX, 2);
+    move(stX, -4);
+    move(stX, 2);
   }
 }
 
@@ -181,7 +172,7 @@ void incubate(int sec)
   while (time > millis())
   {  
     if (del<millis()) {
-       wash(15);
+       wash(5);
        del=millis()+120*1000;
 
     }
@@ -190,12 +181,24 @@ void incubate(int sec)
 
 void menuCallback(int idx) {
   //do something according to index of item selected
+  lcd.setCursor(0,0);
+  lcd.print("@");
+  lcd.print(idx);
+  
   if (idx == 1001) stX.home();
-  if (idx == 1002) home(2);
-  if (idx == 1003) move(stX, 50);
-  if (idx == 1004) move(stX, -50);
-  if (idx == 1005) move(stZ, 22.5);
-  if (idx == 1006) move(stZ, -22.5);
+  if (idx == 1002) stZ.home();
+  if (idx == 1003) move(stX, 5);
+  if (idx == 1004) move(stX, -5);
+  if (idx == 1005) move(stZ, 5);
+  if (idx == 1006) move(stZ, -5);
+
+  if (idx == 1007) move(stX, 1);
+  if (idx == 1008) move(stX, -1);
+  if (idx == 1009) move(stZ, 1);
+  if (idx == 1010) move(stZ, -1);
+  if (idx == 1011) wash(5);
+
+
 
   if (idx > 100 & idx < 900)
   {
@@ -234,7 +237,14 @@ void menuCallback(int idx) {
           }
           else //(buffer[i] == '&')
           { // exec sbuf;
+//            wait(RIGHT);
             j = i + 1;
+            if (sbuf[0] == 'H')
+            {
+              if (sbuf[1]=='0') {home(stX);}
+              else {home(stZ);}
+            }
+
             if (sbuf[0] == 'X' || sbuf[0] == 'Z')
             {
               memcpy( buf, &sbuf[1], 5 );              
@@ -245,7 +255,7 @@ void menuCallback(int idx) {
               lcd.print(mm);
               
               move( (sbuf[0]=='X'?stX:stZ), mm);
-              wait(RIGHT);
+//              wait(RIGHT);
             }
             if (sbuf[0]=='C') //wash/
             {
@@ -255,7 +265,7 @@ void menuCallback(int idx) {
               lcd.print("Washing ");
               lcd.print(sec);
               wash(sec);
-              wait(RIGHT);
+//              wait(RIGHT);
              }
              if (sbuf[0]=='I') //incubate
              {
@@ -265,7 +275,7 @@ void menuCallback(int idx) {
                 lcd.print("Incubating ");
                 lcd.print(sec);
                 incubate(sec);
-                wait(RIGHT);
+//                wait(RIGHT);
              }
              if (sbuf[0]=='P') //wipe
              {
@@ -281,7 +291,7 @@ void menuCallback(int idx) {
                 move(stX,1);
                 move(stZ,10);
                 move(stX,-3);                
-                wait(RIGHT);  
+//                wait(RIGHT);  
            }
             
           }
@@ -292,7 +302,7 @@ void menuCallback(int idx) {
       }
     }
   }
-  menu.goLast(); //return to last viewed menu
+ menu.drawSub(); //return to last viewed menu
 
 }
 

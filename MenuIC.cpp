@@ -26,7 +26,6 @@
 |	menu.goUp(); // to list up
 |	menu.goNext(); // to go to submenu or run callback (i.e "select item")
 |	menu.goBack(); // to go to previous menu
-|	menu.goLast(); // to return to last opened submenu
 |	menu.goSub(int sub_idx); // to go to submenu with index <sub_idx>
 |	menu.goItem(int item_idx); // to go to submenu contains item with index (in "items" array) <item_idx> and move cursor to this item
 |
@@ -42,11 +41,13 @@
 |
 | ===============================================
 | Made by Denis Peshekhonov, 2013
+| Updated by nick from cnc-club.ru 2014
 | ===============================================
 */
 
+
 #include <LiquidCrystal.h>
-#include "MyMenu.h"
+#include "MenuIC.h"
 #include <math.h>
 
 #if defined(ARDUINO) && ARDUINO >= 100
@@ -55,26 +56,16 @@
 #include <WProgram.h>
 #endif
 
-String name;
-int first;
-int second;
-int sub_id;
-int back_id;
-String sub_title;
-
-MItm::MItm(String _name, int _first, int _second) {
-  sub_id = -1;
-  back_id = -1;
-  name = _name;
-  first = _first;
-  second = _second;
+int row=0;
+int current_sub=0;
+int num_rows=4;
+MItm::MItm(String _name, int _id, int _sub_id) {
+  this->id = _id;
+  this->sub_id = _sub_id;
+  this->name = _name;
 }
 
-void MItm::addPars(int _sub_id, int _back_id, String _sub_title) {
-  sub_id = _sub_id;
-  back_id = _back_id;
-  sub_title = _sub_title;
-}
+
 
 Menu::Menu(MItm *_items, int _num_items, LiquidCrystal* _lcd, void (*_callback)(int), int _num_rows, String _cursor) {
   items = _items;
@@ -82,206 +73,155 @@ Menu::Menu(MItm *_items, int _num_items, LiquidCrystal* _lcd, void (*_callback)(
   lcd = _lcd;
   fullsize = _num_items;
   callback = _callback;
-
-  cur_sub = 1;
-  cur_sub_index = 0;
-  cur_item = -1;
-  cur_pos = 0;
   cursor = _cursor;
+}
 
-  main_title = items[0].name;
 
-  int next_sub_id = -1;
-  int next_back_id = -1;
-  String next_sub_title = "";
 
-  for (int i = 0; i < fullsize; i++) {
-    if (items[i].second > -1) {
-      next_sub_id = items[i].first;
-      next_back_id = items[i].second;
-      next_sub_title = items[i].name;
-    } else {
-      items[i].addPars(next_sub_id, next_back_id, next_sub_title);
+void Menu::drawSub()
+{
+  // get title 
+  (*lcd).clear();
+  String title = items[0].name;
+  for (int i = 0; i < fullsize; i++)
+  {
+    if (items[i].id == current_sub)
+    {
+      title = items[i].name;
+      break;
+    }
+  }  
+  (*lcd).setCursor(0, 0);
+  (*lcd).print(title+":");
+  int count = 0;
+  int line = 1;
+  
+  
+  
+  for (int i = 1; i < fullsize; i++)
+  {
+    if (items[i].sub_id == current_sub)
+    {
+
+      if ( count/(num_rows-1) == row/(num_rows-1) )
+      {
+         // echo menu
+        (*lcd).setCursor(0, line);
+        if (count == row) 
+          {(*lcd).print(cursor);}
+        else 
+          {(*lcd).print(" ");}
+        (*lcd).print(items[i].name);
+        (*lcd).print(items[i].sub_id);        
+        (*lcd).print(".");                
+        (*lcd).print(items[i].id);                
+        line++;        
+        if (line > num_rows) 
+        {
+          break;
+        }
+      }
+      count++;    
     }
   }
+}
 
-  //goMain();
+int Menu::get_id()
+{ int count=0;
+  for (int i = 0; i < fullsize; i++)
+  if (items[i].sub_id == current_sub)
+  {
+    if (count==row)
+     {return items[i].id;}
+    count++;
+  }
+  return 0;
+}
+
+int Menu::get_row(int id)
+{
+  int sub_id = get_sub(id);
+  int count=0;
+  for (int i = 0; i < fullsize; i++)
+  {
+    if (items[i].id = id) return count;
+    if (items[i].sub_id == sub_id) count++;
+  }
+  return 0;
+}
+
+int Menu::get_sub(int id)
+{
+  for (int i = 0; i < fullsize; i++)
+  {
+    if (items[i].id == id)
+      return items[i].sub_id;
+  }
+  return 0;
+}
+
+int Menu::get_count(int sub_id) {
+  int count = 0;
+  for (int i = 0; i < fullsize; i++)
+  {
+    if (items[i].sub_id == sub_id)
+      count++;
+  }
+  return count;
+}
+
+void Menu::goNext() {
+  row++; 
+  if ( row>=get_count(current_sub) ) row=0;
+  drawSub();
+}
+
+void Menu::goPrev() {
+  row--; 
+  if (row<0) row = get_count(current_sub)-1;
+  drawSub();
 }
 
 void Menu::goMain() {
-  cur_item = -1;
-  goNext();
-}
-
-void Menu::goDown() {
-  cur_item++;
-  cur_sub_index++;
-
-  bool from_beginning = cur_item >= fullsize;
-
-  if (cur_item < fullsize) {
-    if (items[cur_item].sub_id != cur_sub) {
-      from_beginning = true;
-    }
-  }
-
-  if (from_beginning) {
-    cur_item = cur_item - cur_sub_index;
-    cur_sub_index = 0;
-  }
-
+  current_sub = 0;
+  row=0;
   drawSub();
 }
 
 void Menu::goUp() {
-  cur_item--;
-  cur_sub_index--;
-
-  bool from_end = cur_item < 0;
-
-  if (cur_item >= 0) {
-    if (items[cur_item].sub_id != cur_sub) {
-      from_end = true;
+  for (int i = 0; i < fullsize; i++) {
+    if (items[i].id==current_sub)
+    {
+      current_sub=items[i].sub_id;
+      row = get_row(i);
+      if (current_sub<0) {current_sub=0;}
+      
+      drawSub();
+      return;
     }
   }
-
-  if (from_end) {
-    int cur_item_start = cur_item + 1;
-    cur_sub_index = 0;
-
-    for (int i = cur_item_start; i < fullsize; i++) {
-      if (items[i].sub_id == cur_sub) {
-        cur_sub_index++;
-      }
-    }
-
-    cur_item = cur_item + cur_sub_index;
-    cur_sub_index--;
-  }
-
+  current_sub = 0;
+  row=0;
   drawSub();
+  return;
 }
 
-void Menu::goNext() {
-
-  if (cur_item != -1) {
-    int cur_item2 = findFirst(items[cur_item]);
-    if (cur_item2 == -1) {
-      (*callback)(items[cur_item].first);
-    } else {
-      cur_item = cur_item2;
-      MItm citm = items[cur_item];
-      title = citm.sub_title;
-      cur_sub = citm.sub_id;
-
-      cur_sub_index = 0;
+void Menu::goDown() {
+  int id = get_id();
+  if (id == -10) 
+  {
+     goUp();
+     return;
+     
+  }  //Back!;
+  for (int i = 0; i < fullsize; i++) {
+    if (items[i].sub_id==id){
+      current_sub = id;
+      row=0;
       drawSub();
-    }
-  } else {
-    title = main_title;
-    cur_sub = 0;
-    cur_item = 1;
-
-    cur_sub_index = 0;
-    drawSub();
-  }
-}
-
-void Menu::goSub(int sub_idx) {
-  for (int i = 0; i < fullsize; i++) {
-    if (items[i].second > -1 && items[i].first == sub_idx) {
-      cur_sub = sub_idx;
-      cur_item = i + 1;
-      cur_sub_index = 0;
-      title = items[i].name;
-
-      drawSub();
-      break;
+      return;
     }
   }
+  (*callback)(get_id());
 }
 
-void Menu::goItem(int item_idx) {
-  MItm citm = items[item_idx];
-  if (citm.second > -1) {
-    goSub(citm.first);
-  } else {
-    for (int i = 0; i < fullsize; i++) {
-      if (items[i].second > -1 && items[i].first == citm.sub_id) {
-        cur_sub = citm.sub_id;
-        cur_item = item_idx;
-        cur_sub_index = item_idx - i - 1;
-        title = items[i].name;
-
-        drawSub();
-        break;
-      }
-    }
-  }
-}
-
-void Menu::goLast() {
-  goItem(cur_item);
-}
-
-void Menu::goBack() {
-  goSub(items[cur_item].back_id);
-}
-
-void Menu::drawSub() {
-  int start_item = -1;
-  int page = floor(cur_sub_index / (num_rows - 1));
-  int line = 1;
-
-  (*lcd).clear();
-  (*lcd).setCursor(0, 0);
-  (*lcd).print(title + ":");
-  for (int i = 0; i < fullsize; i++) {
-    MItm citem = items[i];
-
-    if (citem.sub_id == cur_sub) {
-      if (start_item == -1) {
-        start_item = i;
-      }
-
-      int idx = (i - start_item);
-      bool begin_draw = idx >= page * (num_rows - 1);
-
-      if (i + num_rows - 1 >= fullsize) {
-        begin_draw = true;
-      } else {
-        if (items[i + num_rows - 1].sub_id != cur_sub) {
-          begin_draw = true;
-        }
-      }
-      cursor = String(">");
-      if (begin_draw) {
-        (*lcd).setCursor(0, line);
-        if (i == cur_item) {
-          (*lcd).print(cursor + citem.name);
-        } else {
-          (*lcd).print(String(" ") + citem.name);
-        }
-        (*lcd).setCursor(1, line);
-        (*lcd).print (citem.name);
-//        (*lcd).print (citem.sub_idx);
-        line++;
-        if (line>num_rows) break;
-      }
-    }
-  }
-  (*lcd).setCursor(0, 0);
-  (*lcd).print(items[cur_sub].name + ":");
-
-}
-
-int Menu::findFirst(MItm citm) {
-  for (int i = 0; i < fullsize; i++) {
-    MItm sitm = items[i];
-    if (sitm.sub_id == citm.first) {
-      return i;
-    }
-  }
-
-  return -1;
-}

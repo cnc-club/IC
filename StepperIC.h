@@ -4,11 +4,13 @@
 class Stepper {
   public:
     Stepper(float ppm, int step_pin, int dir_pin, int home_pin, int homing_direction);
+    int dir_inv;
     void home();
     void setSpeed(float mmin);
-    void step(int number_of_steps);
+    void step(float mm);
     long pos;
     float ppm;
+    float home_postion;
   private:
     unsigned long step_delay;    // delay between steps, in ms, based on speed
     unsigned long last_step_time;
