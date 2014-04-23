@@ -112,9 +112,9 @@ void Menu::drawSub()
         else 
           {(*lcd).print(" ");}
         (*lcd).print(items[i].name);
-        (*lcd).print(items[i].sub_id);        
+/*        (*lcd).print(items[i].sub_id);        
         (*lcd).print(".");                
-        (*lcd).print(items[i].id);                
+        (*lcd).print(items[i].id);                */
         line++;        
         if (line > num_rows) 
         {
@@ -194,8 +194,6 @@ void Menu::goUp() {
     {
       current_sub=items[i].sub_id;
       row = get_row(i);
-      if (current_sub<0) {current_sub=0;}
-      
       drawSub();
       return;
     }

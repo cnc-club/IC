@@ -5,7 +5,7 @@
 
 
 
-#define PulsesPerMM 42666
+#define PulsesPerMM 42.666666
 Stepper stX(PulsesPerMM, 8, 7, A0, -1);
 Stepper stZ(PulsesPerMM, 10, 9, A1, 1);
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
@@ -17,15 +17,17 @@ int UP, DOWN, RIGHT, LEFT, LIMIT_X, LIMIT_Z;
 // command = [char-type][array char]
 //                              <    ><    ><        ...>
 //                              TestId Time  Procedure
-//  Procedure: (X|Z)\d+ - move
+//  Procedure: (X|Z)\d+ - move 
 //  I\d+ - incubate sec
-//  W\d+ - wash sec
-prog_char string_0[] PROGMEM = "  101  1000 &H2&H0&X66 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &Z-20&I5&Z20&X5 &";
-prog_char string_1[] PROGMEM = "  102  1000 &String 1";
-prog_char string_2[] PROGMEM = "  103       &String 2";
-prog_char string_3[] PROGMEM = "  104       &String 3";
-prog_char string_4[] PROGMEM = "  105       &String 4";
-prog_char string_5[] PROGMEM = "  201       &String 5";
+//  W\d+ - wash sec              5B    6B    300B-5-6
+//                             |     |     |                  A                              B                              C                              D                                E                        F                          E              Final    
+prog_char string_0[] PROGMEM = "  101  4020 &H2&H0 &X66.5 &Z-16&I5&H2&P25     &H0&X71.5 &Z-25&W5&H2&P34     &H0&X76.5 &Z-25&I5&H2&P43      &H0&X81.5 &Z-25&W5&H2&P52     &H0&X86.5 &Z-25&W5&H2&P61     &H0&X81.5 &Z-25&I5&H2&P70     &X-5 &Z-25&W5&H2&P69  &X15&   ";
+prog_char string_1[] PROGMEM = "  401  4020 &H2&H0 &X66.5 &Z-16&I1800&H2&P25  &H0&X71.5 &Z-25&W120&H2&P34   &H0&X71.5 &Z-25&I1200&H2&P43   &H0&X81.5 &Z-25&W120&H2&P52   &H0&X86.5 &Z-25&W120&H2&P61   &H0&X81.5 &Z-25&I600&H2&P70   &X-5 &Z-25&W60&H2&P69 &X15&   ";
+prog_char string_2[] PROGMEM = "  102  1000 &String 1";
+prog_char string_3[] PROGMEM = "  103       &String 2";
+prog_char string_4[] PROGMEM = "  104       &String 3";
+prog_char string_5[] PROGMEM = "  105       &String 4";
+prog_char string_6[] PROGMEM = "  201       &String 5";
 
 PROGMEM const char *tests[] =
 {
@@ -34,13 +36,14 @@ PROGMEM const char *tests[] =
   string_2,
   string_3,
   string_4,
-  string_5
+  string_5,
+  string_6
 };
 #define TESTLEN 300
 char buffer[TESTLEN];    // make sure this is large enough for the largest string it must hold
 
 
-#define NUM_ITEMS 33 //length of items array include submenu headers
+#define NUM_ITEMS 37 //length of items array include submenu headers
 // DO NOT FORDGET UPDATE LENGTH
 MItm items[NUM_ITEMS] = {
   MItm("ImmunoComb Tester", 0, -2), //main header always 0,0
@@ -65,6 +68,8 @@ MItm items[NUM_ITEMS] = {
   MItm("Z+1", 1009, 2),
   MItm("Z-1", 1010, 2),
   MItm("Wash", 1011, 2),
+  MItm("Mega Wash", 1012, 2),
+  MItm("Test X", 1013, 2),  
   MItm("..Back", -10, 2),
 
 
@@ -80,6 +85,10 @@ MItm items[NUM_ITEMS] = {
   MItm("HBc IgM", 205, 20),
   MItm("HCV", 206, 20),
   MItm("..BACK", -10, 20),
+  
+  MItm("CMV IgM", 401, 40),
+  MItm("..BACK", -10, 40),
+  
 };
 // DO NOT FORDGET UPDATE LENGTH
 Menu menu(items, NUM_ITEMS, &lcd, menuCallback);
@@ -93,9 +102,9 @@ int move(Stepper st, float mm)
   st.step(mm);
 }
 
-void move_to(Stepper st, long mm)
+void move_to(Stepper st, float mm)
 {
-  st.step(mm * st.ppm / 1000 - st.pos);
+  st.step(mm - st.pos);
 }
 
 
@@ -152,9 +161,9 @@ void wait(int button)
   while ( digitalRead(button) == LOW ) delay(100);
 }
 
-void wash(int sec)
+void wash(long sec)
 {
-  long time = millis() + sec*1000;
+  long time = millis() + sec*long(1000);
   while (time > millis())
   {
     move(stZ, 6);
@@ -162,33 +171,66 @@ void wash(int sec)
     move(stX, 2);
     move(stX, -4);
     move(stX, 2);
+    timeleft(); // echo time left    
   }
 }
 
-void incubate(int sec)
+void incubate(long sec)
 {
   long del = millis();
-  long time = millis() + sec*1000;
-  while (time > millis())
+  long t1 = millis() + sec*long(1000);
+  while (t1 > millis())
   {  
     if (del<millis()) {
-       wash(5);
-       del=millis()+120*1000;
-
-    }
+       wash(30);
+       del=millis()+long(180)*long(1000);
+     }
+     timeleft(); // echo time left
   }
 }
+
+int time;
+long timestart;
+long last_time_left=0;
+
+void timeleft(){
+  if (last_time_left<millis())
+  {
+    last_time_left=millis()+20000;
+    lcd.setCursor(0, 1);
+    lcd.print("Min left:       ");
+    lcd.setCursor(10, 1);  
+    lcd.print( (time-(millis()-timestart)/1000)/60 );
+  }
+}
+
+
 
 void menuCallback(int idx) {
   //do something according to index of item selected
-  lcd.setCursor(0,0);
-  lcd.print("@");
-  lcd.print(idx);
+//  lcd.setCursor(0,0);
+//  lcd.print("@");
+//  lcd.print(idx);
   
   if (idx == 1001) stX.home();
   if (idx == 1002) stZ.home();
-  if (idx == 1003) move(stX, 5);
-  if (idx == 1004) move(stX, -5);
+  if (idx == 1003) {move(stX, 5);
+      lcd.setCursor(0,2);
+      lcd.print(stX.steps);
+      lcd.print(" ");
+      lcd.print(stX.pos);
+      lcd.print(" ");
+      lcd.print(stX.ppm);
+      lcd.print(" ");
+      lcd.print(stX.pos);
+      
+      delay(1000);      
+  }
+  if (idx == 1004) {move(stX, -5);
+      lcd.setCursor(0,2);
+      lcd.print(stX.steps);
+      delay(1000);
+  }
   if (idx == 1005) move(stZ, 5);
   if (idx == 1006) move(stZ, -5);
 
@@ -197,7 +239,27 @@ void menuCallback(int idx) {
   if (idx == 1009) move(stZ, 1);
   if (idx == 1010) move(stZ, -1);
   if (idx == 1011) wash(5);
-
+  if (idx == 1012) 
+  for (int i=0; i<100; i++)
+    {
+      lcd.setCursor(0,2);
+      lcd.print(stX.steps);
+      lcd.setCursor(0,3);
+      lcd.print(stZ.steps);
+      wash(5);
+      
+    }
+  if (idx == 1013) {
+    while (digitalRead(stX.home_pin) == HIGH)
+    {
+        float mm = random(1,500)/10;
+        move(stX, mm);
+        move(stX,-mm);
+    }
+  }
+  
+  
+ 
 
 
   if (idx > 100 & idx < 900)
@@ -214,21 +276,23 @@ void menuCallback(int idx) {
       if (idx == atoi(sbuf) )
       {
         lcd.clear();
-        lcd.print( "Start testing!" );
+        lcd.setCursor(0,0);
+        lcd.print( "TESTING IN PROGRESS" );
         memset(buf,int("0"),6); 
         memcpy( sbuf, &buffer[6], 5 );
-        int time = atoi(sbuf);
-        lcd.setCursor(0, 0);
-        sprintf(sbuf, "%02d:%02d:%02d", time / 3600 % 60, time / 60 % 60, time % 60);
-        lcd.setCursor(0, 1);
-        lcd.print("Test time: ");
-        
-        lcd.print(sbuf);
-        
+        time = atoi(sbuf);
+        timestart = millis();
+//        lcd.setCursor(0, 0);
+//        sprintf(sbuf, "%02d:%02d:%02d", time / 3600 % 60, time / 60 % 60, time % 60);
+//        lcd.setCursor(0, 1);
+//        lcd.print("Test time: ");
         memset(sbuf, int(" "), sizeof sbuf);
         int j = 13;
-        for (i == j; i < TESTLEN; i++)
+        for (i = j; i < TESTLEN; i++)
         {
+          timeleft();                  
+          lcd.setCursor(0,0);
+          lcd.print( "TESTING IN PROGRESS" );
           if (buffer[i] != '&')
           {
             // store command
@@ -241,6 +305,12 @@ void menuCallback(int idx) {
             j = i + 1;
             if (sbuf[0] == 'H')
             {
+              lcd.setCursor(0, 4);
+              lcd.print("                    ");
+              lcd.setCursor(0, 4);
+              lcd.print("Homing ");
+              lcd.print(sbuf[1]);
+              lcd.print("...");
               if (sbuf[1]=='0') {home(stX);}
               else {home(stZ);}
             }
@@ -250,20 +320,24 @@ void menuCallback(int idx) {
               memcpy( buf, &sbuf[1], 5 );              
               float mm = atof(buf);
               lcd.setCursor(0, 4);
-              lcd.print("Move ");
+              lcd.print("                         ");
+              lcd.setCursor(0, 4);
+              lcd.print("Moving ");
               lcd.print(sbuf[0]);
               lcd.print(mm);
-              
+              lcd.print("mm...");            
               move( (sbuf[0]=='X'?stX:stZ), mm);
-//              wait(RIGHT);
             }
-            if (sbuf[0]=='C') //wash/
+            if (sbuf[0]=='W') //wash/
             {
               memcpy( buf, &sbuf[1], 5 );              
               int sec = atoi(buf);
               lcd.setCursor(0, 4);
+              lcd.print("                         ");
+              lcd.setCursor(0, 4);
               lcd.print("Washing ");
-              lcd.print(sec);
+              lcd.print(sec/60);                
+              lcd.print(" min...");
               wash(sec);
 //              wait(RIGHT);
              }
@@ -272,26 +346,30 @@ void menuCallback(int idx) {
                 memcpy( buf, &sbuf[1], 5 );              
                 int sec = atoi(buf);
                 lcd.setCursor(0, 4);
+                lcd.print("                         ");
+                lcd.setCursor(0, 4);
                 lcd.print("Incubating ");
-                lcd.print(sec);
+                lcd.print(sec/60);                
+                lcd.print(" min...");
                 incubate(sec);
 //                wait(RIGHT);
              }
              if (sbuf[0]=='P') //wipe
              {
-                lcd.print("Wiping ");
-                move(stZ,-10);
-                move(stZ,5);
-                move(stX,1);
-                move(stZ,-5);
-                move(stZ,5);
-                move(stX,1);
-                move(stZ,-5);
-                move(stZ,5);
-                move(stX,1);
-                move(stZ,10);
-                move(stX,-3);                
+                lcd.setCursor(0, 4);
+                lcd.print("                         ");
+                lcd.print("Wiping...");
+                memcpy( buf, &sbuf[1], 5 );              
+                float mm = atof(buf);
+                move(stX,-mm);                
+                move(stZ,-27.5);                
+                move(stZ,10);                
+                move(stX,2);                
+                move(stZ,-10);                
+                home(stZ);
+                move(stX,mm-2);                
 //                wait(RIGHT);  
+               timeleft(); // echo time left
            }
             
           }
