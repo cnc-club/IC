@@ -2,8 +2,9 @@
 #include <LiquidCrystal.h>
 #include "StepperIC.h"
 #include "MenuIC.h"
+#include "Flash.h"
 
-
+#define SERIAL 1
 
 #define PulsesPerMM 42.666666
 Stepper stX(PulsesPerMM, 8, 7, A0, -1);
@@ -29,7 +30,43 @@ prog_char string_4[] PROGMEM = "  104       &String 3";
 prog_char string_5[] PROGMEM = "  105       &String 4";
 prog_char string_6[] PROGMEM = "  201       &String 5";
 
-PROGMEM const char *tests[] =
+FLASH_STRING_ARRAY(menuitems, 
+//     id  sub_id  name[20]
+//   |1234|    |12345678901234567890|
+//        |1234|
+PSTR("   0   -2 ImmunoComb Tester"),
+PSTR("   1    0 Infections"),
+PSTR("  10    1 HIV"),
+PSTR("  20    1 Hepatitis"),
+PSTR("  30    1 Chlamidia"),
+PSTR("  40    1 TORCH"),
+PSTR("  50    1 Helicobacter"),
+PSTR("  60    1 Others"),
+PSTR(" -10    1 ..BACK"),
+PSTR(" 201   20 HAV Ab"),
+PSTR(" 202   20 HAV IgM"),
+PSTR(" 203   20 HBs Ag'90"),
+PSTR(" 204   20 HBc IgG"),
+PSTR(" 205   20 HBc IgM"),
+PSTR(" 206   20 HCV"),
+PSTR(" -10   20 ..BACK"),
+PSTR("   2    0 Settings"),
+PSTR("1001    2 Home X"),
+PSTR("1002    2 Home Z"),
+PSTR("1003    2 X+5"),
+PSTR("1004    2 X-5"),
+PSTR("1005    2 Z+5"),
+PSTR("1006    2 Z-5"),
+PSTR("1007    2 X+1"),
+PSTR("1008    2 X-1"),
+PSTR("1009    2 Z+1"),
+PSTR("1010    4 Z-1"),
+PSTR("1011    2 Wash"),
+PSTR("-10     2 ..Back"));
+
+Menu menu(menuitems, &lcd, menuCallback);
+
+char *tests[] =
 {
   string_0,
   string_1,
@@ -43,55 +80,8 @@ PROGMEM const char *tests[] =
 char buffer[TESTLEN];    // make sure this is large enough for the largest string it must hold
 
 
-#define NUM_ITEMS 37 //length of items array include submenu headers
-// DO NOT FORDGET UPDATE LENGTH
-MItm items[NUM_ITEMS] = {
-  MItm("ImmunoComb Tester", 0, -2), //main header always 0,0
-  MItm("Infections", 1, 0), 
-  MItm("HIV", 10, 1), 
-  MItm("Hepatitis", 20, 1),
-  MItm("Chlamidia", 30, 1),
-  MItm("TORCH", 40, 1),
-  MItm("Helicobacter", 50, 1),
-  MItm("Others", 60, 1),
-  MItm("..BACK", -10, 1),
-
-  MItm("Settings", 2, 0),
-  MItm("Home X", 1001, 2),
-  MItm("Home Z", 1002, 2),
-  MItm("X+5", 1003, 2),
-  MItm("X-5", 1004, 2),
-  MItm("Z+5", 1005, 2),
-  MItm("Z-5", 1006, 2),
-  MItm("X+1", 1007, 2),
-  MItm("X-1", 1008, 2),
-  MItm("Z+1", 1009, 2),
-  MItm("Z-1", 1010, 2),
-  MItm("Wash", 1011, 2),
-  MItm("Mega Wash", 1012, 2),
-  MItm("Test X", 1013, 2),  
-  MItm("..Back", -10, 2),
 
 
-  MItm("HIV BiSpot", 101, 10),
-  MItm("HIV Combfirm", 102, 10),
-  MItm("HIV TriSpot", 103, 10),
-  MItm("..BACK", -10, 10),
-
-  MItm("HAV Ab", 201, 20),
-  MItm("HAV IgM", 202, 20),
-  MItm("HBs Ag'90", 203, 20),
-  MItm("HBc IgG", 204, 20),
-  MItm("HBc IgM", 205, 20),
-  MItm("HCV", 206, 20),
-  MItm("..BACK", -10, 20),
-  
-  MItm("CMV IgM", 401, 40),
-  MItm("..BACK", -10, 40),
-  
-};
-// DO NOT FORDGET UPDATE LENGTH
-Menu menu(items, NUM_ITEMS, &lcd, menuCallback);
 
 void home(Stepper st) {
     st.home();  
@@ -128,30 +118,46 @@ void setup() {
   stZ.setSpeed(1);
   stX.dir_inv = -1;
   stZ.dir_inv = -1;
-  
-
+    
+  Serial.begin(9600);
 }
 
 
+int availableMemory() 
+{
+  int size = 1024;
+  byte *buf;
+  while ((buf = (byte *) malloc(--size)) == NULL);
+  free(buf);
+  return size;
+}
+
 void loop() {
 //  menuCallback(101) ;
-  if (digitalRead(LEFT) == HIGH) {
-    //menu.goBack();
-    //delay(100);
+  int b = Serial.read();
+  if (b!=-1) {
+    Serial.print("Read ");
+    Serial.println(b);
+  }  
+  
+  
+  if (digitalRead(LEFT) == HIGH and 0 ||  b==97) {
+    menu.goUp();
+    delay(100);
+    Serial.println(availableMemory());
   }
-  if (digitalRead(DOWN) == HIGH) {
+  if (digitalRead(DOWN) == HIGH or b==115) {
     menu.goNext();
     delay(100);
   }
-  if (digitalRead(UP) == HIGH) {
+  if (digitalRead(UP) == HIGH or b==119) {
     menu.goPrev();
     delay(100);
   }
-  if (digitalRead(RIGHT) == HIGH) {
+  if (digitalRead(RIGHT) == HIGH or b==100) {
     menu.goDown();
     delay(100);
   }
-
   delay(100);
 }
 

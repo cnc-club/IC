@@ -45,10 +45,82 @@
 | ===============================================
 */
 
-
+#define SERIAL 1
 #include <LiquidCrystal.h>
 #include "MenuIC.h"
+#include "Flash.h"
 #include <math.h>
+
+
+FLASH_STRING(menuitems, 
+//     id  sub_id  name[20]
+//   |1234|    |12345678901234567890|
+//        |1234|
+"   0   -2 ImmunoComb Tester\n"
+"   1    0 Infections\n"
+"  10    1 HIV\n"
+"  20    1 Hepatitis\n"
+"  30    1 Chlamidia\n"
+"  40    1 TORCH\n"
+"  50    1 Helicobacter\n"
+"  60    1 Others\n"
+" -10    1 ..BACK\n"
+" 201   20 HAV Ab\n"
+" 202   20 HAV IgM\n"
+" 203   20 HBs Ag'90\n"
+" 204   20 HBc IgG\n"
+" 205   20 HBc IgM\n"
+" 206   20 HCV\n"
+" -10   20 ..BACK\n"
+"   2    0 Settings\n"
+"1001    2 Home X\n"
+"1002    2 Home Z\n"
+"1003    2 X+5\n"
+"1004    2 X-5\n"
+"1005    2 Z+5\n"
+"1006    2 Z-5\n"
+"1007    2 X+1\n"
+"1008    2 X-1\n"
+"1009    2 Z+1\n"
+"1010    4 Z-1\n"
+"1011    2 Wash\n"
+"-10     2 ..Back\n");
+
+
+int id = {0,-2 ImmunoComb Tester\n"
+"   1    0 Infections\n"
+"  10    1 HIV\n"
+"  20    1 Hepatitis\n"
+"  30    1 Chlamidia\n"
+"  40    1 TORCH\n"
+"  50    1 Helicobacter\n"
+"  60    1 Others\n"
+" -10    1 ..BACK\n"
+" 201   20 HAV Ab\n"
+" 202   20 HAV IgM\n"
+" 203   20 HBs Ag'90\n"
+" 204   20 HBc IgG\n"
+" 205   20 HBc IgM\n"
+" 206   20 HCV\n"
+" -10   20 ..BACK\n"
+"   2    0 Settings\n"
+"1001    2 Home X\n"
+"1002    2 Home Z\n"
+"1003    2 X+5\n"
+"1004    2 X-5\n"
+"1005    2 Z+5\n"
+"1006    2 Z-5\n"
+"1007    2 X+1\n"
+"1008    2 X-1\n"
+"1009    2 Z+1\n"
+"1010    4 Z-1\n"
+"1011    2 Wash\n"
+"-10     2 ..Back\n");
+
+
+
+
+#define menulen 50
 
 #if defined(ARDUINO) && ARDUINO >= 100
 #include <Arduino.h>
@@ -59,19 +131,26 @@
 int row=0;
 int current_sub=0;
 int num_rows=4;
-MItm::MItm(String _name, int _id, int _sub_id) {
-  this->id = _id;
-  this->sub_id = _sub_id;
-  this->name = _name;
-}
+char buff[30];
 
 
 
-Menu::Menu(MItm *_items, int _num_items, LiquidCrystal* _lcd, void (*_callback)(int), int _num_rows, String _cursor) {
-  items = _items;
+Menu::Menu(LiquidCrystal* _lcd, void (*_callback)(int), int _num_rows, String _cursor) {
+  fullsize = 0;
+  for (int i=0; menuitems[i]; ++i) // inspect each character in the string
+    if (menuitems[i] == '\n')
+      fullsize++;
+  int id[menulen];
+  int sub_id[menulen];
+  for 
+  return;
+
+
+
+  int items ;
   num_rows = _num_rows;
   lcd = _lcd;
-  fullsize = _num_items;
+
   callback = _callback;
   cursor = _cursor;
 }
@@ -91,10 +170,16 @@ void Menu::drawSub()
       break;
     }
   }  
+
   (*lcd).setCursor(0, 0);
   (*lcd).print(title+":");
+#ifdef SERIAL 
+  Serial.println("");
+  Serial.println(title+":");
+#endif 
   int count = 0;
   int line = 1;
+  
   
   
   
@@ -108,13 +193,28 @@ void Menu::drawSub()
          // echo menu
         (*lcd).setCursor(0, line);
         if (count == row) 
-          {(*lcd).print(cursor);}
+          { 
+            (*lcd).print(cursor);
+            #ifdef SERIAL   
+              Serial.print(cursor);
+            #endif 
+          }
         else 
-          {(*lcd).print(" ");}
+          {
+            (*lcd).print(" ");
+            #ifdef SERIAL   
+              Serial.print(" ");
+            #endif 
+          }
         (*lcd).print(items[i].name);
-/*        (*lcd).print(items[i].sub_id);        
-        (*lcd).print(".");                
-        (*lcd).print(items[i].id);                */
+         #ifdef SERIAL   
+            Serial.print(i);
+            Serial.print("-");            
+            Serial.print(items[i].sub_id);
+            Serial.print(" ");            
+            Serial.print(items[i].name);
+            Serial.println("");
+          #endif 
         line++;        
         if (line > num_rows) 
         {
@@ -124,6 +224,8 @@ void Menu::drawSub()
       count++;    
     }
   }
+  for (int i = 1; i < fullsize; i++)
+        Serial.println(items[i].name);  
 }
 
 int Menu::get_id()
